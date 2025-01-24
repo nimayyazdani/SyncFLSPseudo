@@ -1,5 +1,4 @@
 import json
-import time  # Import the time module
 
 import numpy as np
 
@@ -8,8 +7,6 @@ from fls import FLS
 
 
 def main():
-    start_time = time.time()  # Start the timer
-
     bezier_interpolation = BezierInterpolation(
         'bezier_equations_location.json',
         'bezier_equations_degrees.json',
@@ -20,42 +17,60 @@ def main():
     
     fls_instances = [
         FLS(fls_id, bezier_interpolation, all_coords_file)
-        for fls_id in range(2009)
+        for fls_id in range(3)
     ]
 
-    # Store results for each FLS
-    fls_results = []
-
-    max_velocity = [0, 0]
-    max_velocity_frame = [None, None]
+    max_velocity = 0
+    max_velocity_fls_id = None
+    max_velocity_frame = None
+    furthest_distance = 0
+    furthest_distance_fls_id = None
+    longest_frame_distance = 0
+    longest_frame_distance_fls_id = None
+    longest_frame_distance_frame = None
 
     for frame in range(1, 43):  # Simulate frames 1 to 42
         for fls in fls_instances:
             fls.update_position(frame)
             # Calculate velocity for the current frame
             velocity = fls.velocity_magnitude(frame) * 24  # Convert to per second
-            if velocity > max_velocity[fls.fls_id]:
-                max_velocity[fls.fls_id] = velocity
-                max_velocity_frame[fls.fls_id] = frame
+            if velocity > max_velocity:
+                max_velocity = velocity
+                max_velocity_fls_id = fls.fls_id
+                max_velocity_frame = frame
 
     for fls in fls_instances:
-        total_length = fls.total_distance
+        total_length = fls.calculate_path_length(1, 42)
         print(f"Total Path Length for FLS {fls.fls_id}: {total_length}")
+        if total_length > furthest_distance:
+            furthest_distance = total_length
+            furthest_distance_fls_id = fls.fls_id
 
-        # Store results for this FLS
-        fls_results.append({
-            "fls_id": fls.fls_id,
-            "total_length": total_length,
-            "max_velocity": max_velocity[fls.fls_id],
-            "max_velocity_frame": max_velocity_frame[fls.fls_id]
-        })
+    # Find the longest frame distance
+    for fls in fls_instances:
+        for frame in range(1, 42):
+            frame_length = fls.calculate_frame_length(frame, frame + 1)
+            if frame_length > longest_frame_distance:
+                longest_frame_distance = frame_length
+                longest_frame_distance_fls_id = fls.fls_id
+                longest_frame_distance_frame = frame
 
-    # Write results to JSON
-    with open('fls_results.json', 'w') as outfile:
-        json.dump(fls_results, outfile, indent=4)
+    # Output results to JSON
+    results = {
+        "max_velocity": max_velocity,
+        "max_velocity_fls_id": max_velocity_fls_id,
+        "max_velocity_frame": max_velocity_frame,
+        "furthest_distance": furthest_distance,
+        "furthest_distance_fls_id": furthest_distance_fls_id,
+        "longest_frame_distance": longest_frame_distance,
+        "longest_frame_distance_fls_id": longest_frame_distance_fls_id,
+        "longest_frame_distance_frame": longest_frame_distance_frame
+    }
 
-    end_time = time.time()  # End the timer
-    print(f"Execution time: {end_time - start_time:.2f} seconds")  # Print the execution time
+    with open("fls_results.json", "w") as outfile:
+        json.dump(results, outfile, indent=4)
+
+    print("Results written to fls_results.json")
 
 if __name__ == "__main__":
     main()

@@ -174,10 +174,10 @@ def follow_flight_path(fls_id):
         "fls_id": fls_id
     }
 
-    # with open(f"fls_results_{fls_id}.json", "w") as outfile:
-    #     json.dump(results, outfile, indent=4)
+    with open(f"fls_results_{fls_id}.json", "w") as outfile:
+        json.dump(results, outfile, indent=4)
 
-    # print(f"Results for FLS {fls_id} written to fls_results_{fls_id}.json")
+    print(f"Results for FLS {fls_id} written to fls_results_{fls_id}.json")
 
 # Example usage for FLS 0
 follow_flight_path(0)

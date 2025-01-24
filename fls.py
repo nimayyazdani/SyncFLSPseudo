@@ -45,7 +45,7 @@ class FLS:
     def calculate_frame_length(self, t1, t2):
         # Integrate the velocity magnitude over the interval [t1, t2]
         # Adjust the absolute and relative error tolerances for faster computation
-        length, _ = quad(self.velocity_magnitude, t1, t2)
+        length, _ = quad(self.velocity_magnitude, t1, t2, epsabs=1e-3, epsrel=1e-3)
         return length
 
     def calculate_path_length(self, t1, t2):
