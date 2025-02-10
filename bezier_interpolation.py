@@ -1,5 +1,6 @@
 import json
 import math
+import os
 
 import numpy as np
 from scipy.integrate import quad
@@ -7,34 +8,25 @@ from sympy import lambdify, symbols
 
 
 class BezierInterpolation:
-    def __init__(self, location_file, rotation_file, scale_file):
-        self.location_eqs = self.load_and_parse_bezier(location_file)
-        self.rotation_eqs = self.load_and_parse_bezier(rotation_file)
-        self.scale_eqs = self.load_and_parse_bezier(scale_file)
+    def __init__(self, json_file, keyframe_name):
+        base_dir = os.path.dirname(__file__)
+        json_file_path = os.path.join(base_dir, json_file)
 
-    def load_and_parse_bezier(self, file_path):
-        with open(file_path, 'r') as file:
-            bezier_data = json.load(file)
-        return {axis: self.parse_bezier_equation(data["equation"]) for axis, data in bezier_data.items()}
+        with open(json_file_path, 'r') as file:
+            data = json.load(file)
+        
+        keyframe_data = data.get(keyframe_name)
+        if not keyframe_data:
+            raise ValueError(f"Keyframe {keyframe_name} not found in the JSON file.")
+        
+        self.location_eqs = {axis: self.parse_bezier_equation(eq_data["equation"]) for axis, eq_data in keyframe_data['Bezier equations']['Bezier equations for location'].items()}
+        self.rotation_eqs = {axis: self.parse_bezier_equation(eq_data["equation"]) for axis, eq_data in keyframe_data['Bezier equations']['Bezier equations for rotation_euler'].items()}
+        self.scale_eqs = {axis: self.parse_bezier_equation(eq_data["equation"]) for axis, eq_data in keyframe_data['Bezier equations']['Bezier equations for scale'].items()}
 
     def parse_bezier_equation(self, bezier_eq_str):
         t = symbols('t')
-        # Ensure the equation is a valid sympy expression
         expr = eval(bezier_eq_str, {"t": t, "np": np, "math": math})
         return expr
-
-    def get_waypoint(self, frame):
-        """Calculate the 3D waypoint coordinate for a given frame."""
-        return {
-            'x': self.location_eqs['B_X'](frame),
-            'y': self.location_eqs['B_Y'](frame),
-            'z': self.location_eqs['B_Z'](frame)
-        }
-
-    def execute_flight_path(self, frame):
-        """Calculate the global position based on the Bézier curve."""
-        waypoint = self.get_waypoint(frame)
-        return np.array([waypoint['x'], waypoint['y'], waypoint['z']])
 
     def evaluate_bezier_curve(self, bezier_eq, frame):
         t = symbols('t')
@@ -95,7 +87,6 @@ class BezierInterpolation:
         return rz @ ry @ rx
 
     def curve_length(self, t1, t2, bezier_x, bezier_y, bezier_z):
-        # Lambdify the Bézier equations to make them callable
         t = symbols('t')
         bezier_x_func = lambdify(t, bezier_x, modules=["numpy"])
         bezier_y_func = lambdify(t, bezier_y, modules=["numpy"])
@@ -111,10 +102,11 @@ class BezierInterpolation:
 
 def follow_flight_path(fls_id):
     # Define file paths relative to the current directory
-    all_coords_file = "all_FLS_Coords.json"
-    location_curves_path = "bezier_equations_location.json"
-    rotation_curves_path = "bezier_equations_degrees.json"
-    scale_curves_path = "bezier_equations_scale.json"
+    base_dir = os.path.dirname(__file__)
+    all_coords_file = os.path.join(base_dir, "all_FLS_Coords.json")
+    location_curves_path = os.path.join(base_dir, "bezier_equations_location_KF1.json")
+    rotation_curves_path = os.path.join(base_dir, "bezier_equations_degrees_KF1.json")
+    scale_curves_path = os.path.join(base_dir, "bezier_equations_scale_KF1.json")
 
     # Load the center point from all_FLS_Coords.json
     with open(all_coords_file, 'r') as file:
@@ -166,18 +158,15 @@ def follow_flight_path(fls_id):
             max_velocity = velocity
             max_velocity_frame = frame
 
-    # Output results to JSON
-    results = {
-        "total_distance": total_distance,
-        "max_velocity": max_velocity,
-        "max_velocity_frame": max_velocity_frame,
-        "fls_id": fls_id
-    }
+    # # Output results to JSON
+    # results = {
+    #     "total_distance": total_distance,
+    #     "max_velocity": max_velocity,
+    #     "max_velocity_frame": max_velocity_frame,
+    #     "fls_id": fls_id
+    # }
 
-    with open(f"fls_results_{fls_id}.json", "w") as outfile:
-        json.dump(results, outfile, indent=4)
+    # with open(f"fls_results_{fls_id}.json", "w") as outfile:
+    #     json.dump(results, outfile, indent=4)
 
-    print(f"Results for FLS {fls_id} written to fls_results_{fls_id}.json")
-
-# Example usage for FLS 0
-follow_flight_path(0)
+    # print(f"Results for FLS {fls_id} written to fls_results_{fls_id}.json")
