@@ -10,7 +10,7 @@
    - "all_FLS_Coords.json" : A JSON file containing all of the starting coordinates for all FLSs at the begining of each keyframe of the animation.
    - "keyframes_Rose_All_VERTICES.json" : A intermediary JSON file that stores the keyframes to be applied to the generated FLSs (represetned as spheres) in the depicted animation.
    - "Sphere_0_global_coordinates.txt" : A text file that contains the coordinates of FLS ID 0 (represented as a sphere object in Blender) during the entire animation as a sanity check.
-6. Next, navigate to the "main.py" file. Before running, specify how many FLSs are in the animation. 
+6. Next, navigate to the "main.py" file. Before running, specify how many FLSs are in the animation and the name of the animated object. 
 7. Run "main.py".
    This should output three files into the results folder:
    - "calculated_frame_lengths.csv" : A CSV file that contains the travel length that each FLS traveled from one frame to the next during the animation.
