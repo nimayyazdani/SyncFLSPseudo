@@ -52,30 +52,39 @@ def main():
         fl_writer.writerow(headers)
 
         # Extract keyframe information
-        kf1_start, kf1_end = extract_keyframe_info(bezier_file, 'Keyframe 1 to Keyframe 2')
-        kf2_start, kf2_end = extract_keyframe_info(bezier_file, 'Keyframe 2 to Keyframe 3')
-        kf3_start, kf3_end = extract_keyframe_info(bezier_file, 'Keyframe 3 to Keyframe 4')
-        kf4_start, kf4_end = extract_keyframe_info(bezier_file, 'Keyframe 4 to Keyframe 5')
-
-        # Initialize FLS instances for the first keyframe segment
-        bezier_interpolation_kf1 = BezierInterpolation(bezier_file, 'Keyframe 1 to Keyframe 2')
-        
-        fls_instances_kf1 = [
-            FLS(fls_id, bezier_interpolation_kf1, all_coords_file)
-            for fls_id in fls_ids
+        keyframes = [
+            ('Keyframe 1 to Keyframe 2', extract_keyframe_info(bezier_file, 'Keyframe 1 to Keyframe 2')),
+            ('Keyframe 2 to Keyframe 3', extract_keyframe_info(bezier_file, 'Keyframe 2 to Keyframe 3')),
+            ('Keyframe 3 to Keyframe 4', extract_keyframe_info(bezier_file, 'Keyframe 3 to Keyframe 4')),
+            ('Keyframe 4 to Keyframe 5', extract_keyframe_info(bezier_file, 'Keyframe 4 to Keyframe 5'))
         ]
+
+        # Initialize FLS instances for each keyframe segment
+        fls_instances = {
+            name: [
+                FLS(fls_id, BezierInterpolation(bezier_file, name), all_coords_file)
+                for fls_id in fls_ids
+            ]
+            for name, _ in keyframes
+        }
 
         # Dictionary to store max velocity information
         max_velocity_info = {f'FLS{fls_id}': {'frame': None, 'velocity': 0} for fls_id in fls_ids}
         overall_max_velocity = {'frame': None, 'velocity': 0, 'fls_id': None}
 
-        # Process frames for KF1
-        for frame in range(kf1_start, kf1_end + 1):
+        # Process frames for all keyframes
+        for frame in range(keyframes[0][1][0], keyframes[-1][1][1] + 1):
             waypoints_row = [frame]
             frame_lengths_row = [frame]
 
-            for fls in fls_instances_kf1:
-                fls.update_position(frame, kf1_start)
+            # Determine the current keyframe segment
+            for name, (kf_start, kf_end) in keyframes:
+                if kf_start <= frame <= kf_end:
+                    current_fls_instances = fls_instances[name]
+                    break
+
+            for fls in current_fls_instances:
+                fls.update_position(frame, kf_start)
                 waypoints_row.append(np.round(fls.current_position, 5).tolist())
                 frame_length = fls.calculate_frame_length(frame - 1, frame)
                 frame_lengths_row.append(frame_length)
@@ -95,108 +104,13 @@ def main():
             wp_writer.writerow(waypoints_row)
             fl_writer.writerow(frame_lengths_row)
 
-        # Update total distance traveled for KF1
-        for fls in fls_instances_kf1:
-            fls.update_total_distance_traveled(kf1_start, kf1_end)
-
-        # Initialize FLS instances for the second keyframe segment
-        fls_instances_kf2 = [
-            FLS(fls_id, BezierInterpolation(bezier_file, 'Keyframe 2 to Keyframe 3'), all_coords_file)
-            for fls_id in fls_ids
-        ]
-
-        # Process frames for KF2
-        for frame in range(kf2_start, kf2_end + 1):
-            waypoints_row = [frame]
-            frame_lengths_row = [frame]
-
-            for fls in fls_instances_kf2:
-                fls.update_position(frame, kf2_start)
-                waypoints_row.append(np.round(fls.current_position, 5).tolist())
-                frame_length = fls.calculate_frame_length(frame - 1, frame)
-                frame_lengths_row.append(frame_length)
-
-                # Calculate velocity
-                velocity = frame_length * 24
-                if velocity > max_velocity_info[f'FLS{fls.fls_id}']['velocity']:
-                    max_velocity_info[f'FLS{fls.fls_id}']['velocity'] = velocity
-                    max_velocity_info[f'FLS{fls.fls_id}']['frame'] = frame
-                # Check for overall max velocity
-                if velocity > overall_max_velocity['velocity']:
-                    overall_max_velocity['velocity'] = velocity
-                    overall_max_velocity['frame'] = frame
-                    overall_max_velocity['fls_id'] = fls.fls_id
-
-            # Write the current frame's data to CSV
-            wp_writer.writerow(waypoints_row)
-            fl_writer.writerow(frame_lengths_row)
-
-        # Initialize FLS instances for the third keyframe segment
-        fls_instances_kf3 = [
-            FLS(fls_id, BezierInterpolation(bezier_file, 'Keyframe 3 to Keyframe 4'), all_coords_file)
-            for fls_id in fls_ids
-        ]
-
-        # Process frames for KF3
-        for frame in range(kf3_start, kf3_end + 1):
-            waypoints_row = [frame]
-            frame_lengths_row = [frame]
-
-            for fls in fls_instances_kf3:
-                fls.update_position(frame, kf3_start)
-                waypoints_row.append(np.round(fls.current_position, 5).tolist())
-                frame_length = fls.calculate_frame_length(frame - 1, frame)
-                frame_lengths_row.append(frame_length)
-
-                # Calculate velocity
-                velocity = frame_length * 24
-                if velocity > max_velocity_info[f'FLS{fls.fls_id}']['velocity']:
-                    max_velocity_info[f'FLS{fls.fls_id}']['velocity'] = velocity
-                    max_velocity_info[f'FLS{fls.fls_id}']['frame'] = frame
-                # Check for overall max velocity
-                if velocity > overall_max_velocity['velocity']:
-                    overall_max_velocity['velocity'] = velocity
-                    overall_max_velocity['frame'] = frame
-                    overall_max_velocity['fls_id'] = fls.fls_id
-
-            # Write the current frame's data to CSV
-            wp_writer.writerow(waypoints_row)
-            fl_writer.writerow(frame_lengths_row)
-
-        # Initialize FLS instances for the fourth keyframe segment
-        fls_instances_kf4 = [
-            FLS(fls_id, BezierInterpolation(bezier_file, 'Keyframe 4 to Keyframe 5'), all_coords_file)
-            for fls_id in fls_ids
-        ]
-
-        # Process frames for KF4
-        for frame in range(kf4_start, kf4_end + 1):
-            waypoints_row = [frame]
-            frame_lengths_row = [frame]
-
-            for fls in fls_instances_kf4:
-                fls.update_position(frame, kf4_start)
-                waypoints_row.append(np.round(fls.current_position, 5).tolist())
-                frame_length = fls.calculate_frame_length(frame - 1, frame)
-                frame_lengths_row.append(frame_length)
-
-                # Calculate velocity
-                velocity = frame_length * 24
-                if velocity > max_velocity_info[f'FLS{fls.fls_id}']['velocity']:
-                    max_velocity_info[f'FLS{fls.fls_id}']['velocity'] = velocity
-                    max_velocity_info[f'FLS{fls.fls_id}']['frame'] = frame
-                # Check for overall max velocity
-                if velocity > overall_max_velocity['velocity']:
-                    overall_max_velocity['velocity'] = velocity
-                    overall_max_velocity['frame'] = frame
-                    overall_max_velocity['fls_id'] = fls.fls_id
-
-            # Write the current frame's data to CSV
-            wp_writer.writerow(waypoints_row)
-            fl_writer.writerow(frame_lengths_row)
+        # Update total distance traveled for each keyframe segment
+        for name, (kf_start, kf_end) in keyframes:
+            for fls in fls_instances[name]:
+                fls.update_total_distance_traveled(kf_start, kf_end)
 
     # Write max velocity information to JSON in the results directory
-    for fls in fls_instances_kf1:
+    for fls in fls_instances[keyframes[0][0]]:
         max_velocity_info[f'FLS{fls.fls_id}']['total_distance_traveled'] = fls.total_distance_traveled
 
     velocity_data = {

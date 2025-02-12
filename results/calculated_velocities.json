@@ -1,13 +1,13 @@
 {
     "overall_max_velocity": {
         "frame": 105,
-        "velocity": 11.033558254822708,
+        "velocity": 10.525536520710155,
         "fls_id": 0
     },
     "fls_max_velocities": {
         "FLS0": {
             "frame": 105,
-            "velocity": 11.033558254822708,
+            "velocity": 10.525536520710155,
             "total_distance_traveled": 11.325754053204054
         }
     }

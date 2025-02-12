@@ -31,21 +31,23 @@ class FLS:
         """Update the FLS's position based on the time t and start frame."""
         # Use the correct center point for the current keyframe interval
         self.center_point = self.center_points[start_frame]
-        
+        print(f"Computing updated position for time {t}")
         transformation_matrix = self.bezier_interpolation.get_transformation_matrix(t)
         initial_position_homogeneous = np.append(self.center_point, 1)
         new_position_homogeneous = transformation_matrix @ initial_position_homogeneous
         new_position = new_position_homogeneous[:3]
+
+        self.current_position = new_position
         
         if self.current_position is not None:
             # Calculate the path length from the previous frame to the current frame
             frame_length = self.calculate_frame_length(t - 1, t)
             self.total_distance += frame_length
-            print(f"Time {t}: FLS ID {self.fls_id} Position: {self.current_position}, Frame Length: {frame_length}")
+            print(f"Time {t}: FLS ID {self.fls_id} Position at time {t}: {self.current_position}, Frame Length: {frame_length}")
         else:
-            print(f"Time {t}: FLS ID {self.fls_id} Position: {self.current_position}")
+            print(f"Time {t}: FLS ID {self.fls_id} Position at time {t}: {self.current_position}")
 
-        self.current_position = new_position
+        
 
     def velocity_magnitude(self, t):
         delta_t = 0.001  # Smaller time step for finite difference
