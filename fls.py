@@ -16,6 +16,10 @@ class FLS:
         self.current_position = None
         self.total_distance = 0.0
         self.total_distance_traveled = 0.0
+        # New attributes for the local clock mechanism
+        self.local_clock = 0.0      # FLS's own internal time
+        self.prev_local_clock = 0.0 # To store the previous clock value used for integrations
+        self.advance_count = 0      # Counter for even FLS to control clock advancement
 
     def load_center_points(self, file_path, fls_id):
         with open(file_path, 'r') as file:
@@ -27,27 +31,24 @@ class FLS:
             center_points[int(start_frame)] = np.array(coords[fls_id], dtype=np.float64)
         return center_points
 
-    def update_position(self, t, start_frame):
-        """Update the FLS's position based on the time t and start frame."""
+    def update_position(self, start_frame):
+        """Update the FLS's position using its local clock and the given keyframe start frame."""
         # Use the correct center point for the current keyframe interval
         self.center_point = self.center_points[start_frame]
-        print(f"Computing updated position for time {t}")
-        transformation_matrix = self.bezier_interpolation.get_transformation_matrix(t)
+        current_time = self.local_clock
+        transformation_matrix = self.bezier_interpolation.get_transformation_matrix(current_time)
         initial_position_homogeneous = np.append(self.center_point, 1)
         new_position_homogeneous = transformation_matrix @ initial_position_homogeneous
         new_position = new_position_homogeneous[:3]
 
-        self.current_position = new_position
-        
-        if self.current_position is not None:
-            # Calculate the path length from the previous frame to the current frame
-            frame_length = self.calculate_frame_length(t - 1, t)
-            self.total_distance += frame_length
-            print(f"Time {t}: FLS ID {self.fls_id} Position at time {t}: {self.current_position}, Frame Length: {frame_length}")
+        # Calculate frame length based on the difference between the previous and current local clock values
+        if self.local_clock == start_frame:
+            frame_length = 0.0  # At the very start, no movement has occurred
         else:
-            print(f"Time {t}: FLS ID {self.fls_id} Position at time {t}: {self.current_position}")
-
-        
+            frame_length = self.calculate_frame_length(self.prev_local_clock, self.local_clock)
+        self.total_distance += frame_length
+        self.current_position = new_position
+        print(f"Local Clock {self.local_clock}: FLS ID {self.fls_id} Position: {self.current_position}, Frame Length: {frame_length}")
 
     def velocity_magnitude(self, t):
         delta_t = 0.001  # Smaller time step for finite difference
@@ -72,4 +73,27 @@ class FLS:
         # Calculate the path length for the interval and update the total distance traveled
         length = self.calculate_frame_length(t1, t2)
         self.total_distance_traveled += length
+
+    def advance_clock(self, error_model=1):
+        """
+        Advance the FLS's local clock according to error-model 1:
+          - For odd-numbered FLS (fast): Increment the clock by 2 every call.
+          - For even-numbered FLS (slow): Increment by 1 only every other call.
+        """
+        if error_model == 1:
+            if self.fls_id % 2 == 1:  # odd FLS: advance by 2 every time
+                self.prev_local_clock = self.local_clock
+                self.local_clock += 2
+            else:  # even FLS: update only every other time
+                self.advance_count += 1
+                if self.advance_count % 2 == 0:
+                    self.prev_local_clock = self.local_clock
+                    self.local_clock += 1
+                else:
+                    # Do not update the clock on the first call (simulate delay)
+                    self.prev_local_clock = self.local_clock
+        else:
+            # Default behavior if no error model is specified: increment by 1
+            self.prev_local_clock = self.local_clock
+            self.local_clock += 1
 
